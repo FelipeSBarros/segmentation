@@ -5,7 +5,7 @@ date: "8 de março de 2016"
 output: pdf_document
 ---
 
-A segmentação de imagens visa agrupar pixels com características similares, como por exemplo, nível de cinza, textura e contraste, resultando em áreas com unidades homogêneas. Logo, a segmentação baseia-se em análise estatística espacial por crescimento de regiões, onde tem-se como parâmetros a quantidade mínima de pixel (para criar a região) e um limiar de similaridade (*threshould* usado apra definir quão similar determinado pixel é em relação aos pixels vizinhos). Assim, pode-se dizer que a segmentação diferencia áreas homogêneas com padrões diferentes aos seus vizinhos, criando $n$ regiões diferentes na imagem. porém tal abordagem não classifica as regioes criadas quanto ao pertencimento a um mesmo grupo ou não. Para mais informações sobre segmentação, [ver manual *spring*](http://www.mundogeomatica.com.br/Livros/Livro_Spring_5.1.2_Aplicacoes_Praticas/LivroSPRING512PassoaPassoAplicacaoPratica.pdf), íten 7.7, página 127.
+A segmentação de imagens visa agrupar pixels com características similares, como por exemplo, nível de cinza, textura e contraste, resultando em áreas com unidades homogêneas. Logo, a segmentação baseia-se em análise estatística espacial por crescimento de regiões, onde tem-se como parâmetros a quantidade mínima de pixel (para criar a região) e um limiar de similaridade (*threshold* usado apra definir quão similar determinado pixel é em relação aos pixels vizinhos). Assim, pode-se dizer que a segmentação diferencia áreas homogêneas com padrões diferentes aos seus vizinhos, criando $n$ regiões diferentes na imagem. porém tal abordagem não classifica as regioes criadas quanto ao pertencimento a um mesmo grupo ou não. Para mais informações sobre segmentação, [ver manual *spring*](http://www.mundogeomatica.com.br/Livros/Livro_Spring_5.1.2_Aplicacoes_Praticas/LivroSPRING512PassoaPassoAplicacaoPratica.pdf), íten 7.7, página 127.
 
 A abordagem aqui apresentada, **não está baseada no método de crescimento por região**. Mas cria $n$ grupos com áreas homogêneas, a partir dos valores dos pixels da(s) imagem(ns). Portanto, não consideram elementos como, contraste e textura. Em resumo, esta abordagem classifica da imagem em $n$ grupos (definidos pelo usário), que serão classificados estatísticamente através da análise de cluster (K-means) e posteriormente *extrapolado* (usado para classificação) para toda a imagem em questão.
 
@@ -19,9 +19,9 @@ args(segmentation)
 1. **studyArea**: sptail polygon;
 1. **projName**: a sufix to be used on output names;
 1. **randomForest**: TRUE/FALSE - if the segmentation must be run with randomForest or not;
-1. **random.pt**: number of random points to be generated **if** using randomForest classification;
+1. **random.pt**: number of random points to be generated **if** using randomForest classification. IF **NULL**, the function will generate **0.01*ncell(envLayer)** (1% of envLayer's cells) random points.
 1. **Kmeans**:  TRUE/FALSE - if the segmentation must be run with Kmeans analysis or not;
-1. **ngroup**: number of classes to be identifyed;
+1. **ngroup**: number of classes to be identifyed. If **NULL**, and running randomForest algorithm, the function will plot the Kmeans variance analysis and ask the number of groups wanted. Thus the decision can be done based on the plot.
 1. **polygonize**: TRUE/FALSE - whether or not to the segmentation must be saved **also** in *shapefile* format;
   
 ```{r, echo=TRUE, message=FALSE, warning=FALSE}
