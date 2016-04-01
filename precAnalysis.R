@@ -4,8 +4,8 @@ precAnalysis <- function(envLayer = MT_prec,
                 projName = 'MT_yr_prec'){
                   
   ##Runing statistics for each zone:
-  mean <- as.data.frame(zonal(MT_prec, MT_20, fun=stats[1]))
-  sd <- as.data.frame(zonal(MT_prec, MT_20, fun=stats[2]))
+  mean <- as.data.frame(zonal(envLayer, zones, fun=stats[1]))
+  sd <- as.data.frame(zonal(envLayer, zones, fun=stats[2]))
   #head(mean)
   #head(sd)
   
@@ -16,11 +16,11 @@ precAnalysis <- function(envLayer = MT_prec,
   write.csv(sd, file = paste0('./out/', stats[2], '_', projName,'.csv'))
   
   ## Computing anual precipitation
-  mean$total <- rowSums(mean[,2:length(mean)])
-  #sd$total <- rowSums(sd[,2:length(sd)])
+  mean$total <- rowSums(mean[,2:length(mean)], na.rm = TRUE)
+  #sd$total <- rowSums(sd[,2:length(sd)], na.rm = TRUE)
 
   ##Reclassifying map to have anual mean precipitation
-  mean_map <- subs(MT_20, mean, by='zone', which='total')
+  mean_map <- subs(zones, mean, by='zone', which='total')
   plot(mean_map)
   writeRaster(mean_map, filename = paste0('./out/', stats[1], '_', projName, '.tif'), overwrite=TRUE)
 }

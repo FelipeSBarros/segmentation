@@ -5,11 +5,11 @@ date: "8 de março de 2016"
 output: pdf_document
 ---
 
-A segmentação de imagens visa agrupar pixels com características similares, como por exemplo, nível de cinza, textura e contraste, resultando em áreas com unidades homogêneas. Logo, a segmentação baseia-se em análise estatística espacial por crescimento de regiões, onde tem-se como parâmetros a quantidade mínima de pixel (para criar a região) e um limiar de similaridade (*threshold* usado apra definir quão similar determinado pixel é em relação aos pixels vizinhos). Assim, pode-se dizer que a segmentação diferencia áreas homogêneas com padrões diferentes aos seus vizinhos, criando $n$ regiões diferentes na imagem. porém tal abordagem não classifica as regioes criadas quanto ao pertencimento a um mesmo grupo ou não. Para mais informações sobre segmentação, [ver manual *spring*](http://www.mundogeomatica.com.br/Livros/Livro_Spring_5.1.2_Aplicacoes_Praticas/LivroSPRING512PassoaPassoAplicacaoPratica.pdf), íten 7.7, página 127.
+A segmentação de imagens visa agrupar pixels com características similares, como por exemplo, nível de cinza, textura e contraste, resultando em áreas com unidades homogêneas. Logo, a segmentação baseia-se em análise estatística espacial por crescimento de regiões, onde tem-se como parâmetros a quantidade mínima de pixel (para criar a região) e um limiar de similaridade (*threshold* usado apra definir quão similar determinado pixel é em relação aos pixels vizinhos). Assim, pode-se dizer que a segmentação diferencia áreas homogêneas com padrões diferentes aos seus vizinhos, criando *k* regiões diferentes na imagem. porém tal abordagem não classifica as regioes criadas quanto ao pertencimento a um mesmo grupo ou não. Para mais informações sobre segmentação, [ver manual *spring*](http://www.mundogeomatica.com.br/Livros/Livro_Spring_5.1.2_Aplicacoes_Praticas/LivroSPRING512PassoaPassoAplicacaoPratica.pdf), íten 7.7, página 127.
 
 A abordagem aqui apresentada, **não está baseada no método de crescimento por região**. Mas cria $n$ grupos com áreas homogêneas, a partir dos valores dos pixels da(s) imagem(ns). Portanto, não consideram elementos como, contraste e textura. Em resumo, esta abordagem classifica da imagem em $n$ grupos (definidos pelo usário), que serão classificados estatísticamente através da análise de cluster (K-means) e posteriormente *extrapolado* (usado para classificação) para toda a imagem em questão.
 
-```{r}
+```{r load_fct}
 source('segmentation.R')
 args(segmentation)
 ```  
@@ -24,14 +24,14 @@ args(segmentation)
 1. **ngroup**: number of classes to be identifyed. If **NULL**, and running randomForest algorithm, the function will plot the Kmeans variance analysis and ask the number of groups wanted. Thus the decision can be done based on the plot.
 1. **polygonize**: TRUE/FALSE - whether or not to the segmentation must be saved **also** in *shapefile* format;
   
-```{r, echo=TRUE, message=FALSE, warning=FALSE}
+```{r load_labs, echo=TRUE, message=FALSE, warning=FALSE}
 # loading libraries
 library(rgdal)
 library(raster)
 library(rgeos)
 library(RColorBrewer)
 ```
-```{r, echo=FALSE, message=FALSE, warning=FALSE, results='hide'}
+```{r load_input, echo=FALSE, message=FALSE, warning=FALSE, results='hide'}
 MT_prec <- stack('./raster/MT_prec.tif')
 
 #Loading MT state limit
@@ -44,7 +44,7 @@ MT <- readOGR(dsn = './shp', layer = 'MT')
 A raster Environmental data (or any other spatial variables with continous values).
 Can be a single raster layer or raster stack.
 
-```{r}
+```{r plot_input1}
 # Data set:
 plot(MT_prec[[1]], main='Environmental dataset')
 ```  
@@ -53,7 +53,7 @@ plot(MT_prec[[1]], main='Environmental dataset')
 
 A study area in polygon format.
 
-```{r}
+```{r plot_input2}
 plot(MT, main='Study area', axes=TRUE)
 ```
   
@@ -63,12 +63,12 @@ The segmentation function is implemented to run with two algorithms:
 **or/and** 
 1. with randomForest classification after Kmeans group identification.
 
-In any case, the Kmeans is used to identify $n$ classes (clusters) from the data provided.
+In any case, the Kmeans is used to identify *k* classes (clusters) from the data provided.
 For more information about [Kmeans](https://en.wikipedia.org/wiki/K-means_clustering).  
 
 ##Running the segmentation with randomForest
   
-```{r, warning=FALSE}
+```{r  running_fct_RF, warning=FALSE}
   segmentation(envLayer = MT_prec, #raster Layer or raster stack
     studyArea = MT, # SpatialPolygonsDataFrame
     randomforest = TRUE,
@@ -76,17 +76,17 @@ For more information about [Kmeans](https://en.wikipedia.org/wiki/K-means_cluste
     random.pt = NULL, # Number of random points to be genarated to run randomForest
     Kmeans = FALSE,
     ngroup = 6, # Number of classes to be classified
-    polygonize = FALSE)
+    polygonize = FALSE,
+    seed=123)
 ```  
 
 By randomForest, a random points is generated in the study area from which the values will be analysed with Kmeans analysis and the *k* groups (**clusters**) will be created. After that, the pixel values and its group assotiated with be used as a train set to run randomForest classification.
-
 
 ##Running the segmentation with Kmeans
  
 **The Kmeans cluster analysis and randomForest classification will use all raster layers in the analysis**
   
-```{r, warning=FALSE}
+```{r  running_fct_Kmeans, warning=FALSE}
 segmentation(envLayer = MT_prec, #raster Layer or raster stack
   studyArea = MT, # SpatialPolygonsDataFrame
   randomforest = FALSE,
@@ -94,30 +94,34 @@ segmentation(envLayer = MT_prec, #raster Layer or raster stack
   random.pt = NULL, # Number of random points to be genarated to run randomForest
   Kmeans = TRUE,
   ngroup = 6, # Number of classes to be classified
-  polygonize = FALSE)
+  polygonize = FALSE,
+  seed=123)
 ```
-When running the segmentations interely with Kmeans, **all the pixels values from all raster layers are used to run the Kmeans cluster analysis**. After that, the pixels values are swiched to the group value.
+When running the segmentations interely with Kmeans, **all the pixels values from all raster layers are used to run the Kmeans cluster analysis**.
   
 ###Comparing results from both methods
-```{r}
+```{r comparing_results}
 rf_result <- raster('./rf_segmentation_MT_yr_prec.tif')
 km_result <- raster('./km_segmentation_MT_yr_prec.tif')
 
 pallete <- brewer.pal(6, 'Spectral')
 par(mfrow=c(1,2))
 plot(rf_result, col = pallete, main = 'randomForest')
+plot(MT, add=TRUE)
 plot(km_result, col = pallete,main = 'Kmeans')
+plot(MT, add=TRUE)
 ```
 
 ##Running the segmentation with both algorithms
 
-```{r, eval=FALSE, echo = TRUE, message = FALSE, warning = FALSE, results = 'hide'}
+```{r running_both_algo, eval=FALSE, echo = TRUE, message = FALSE, warning = FALSE, results = 'hide'}
 segmentation(envLayer = MT_prec, #raster Layer or raster stack
   studyArea = MT, # SpatialPolygonsDataFrame
   randomforest = TRUE,
   projName = 'MT_yr_prec',
   random.pt = NULL, # Number of random points to be genarated to run randomForest
   Kmeans = TRUE,
-  ngroup = 100, # Number of classes to be classified
-  polygonize = FALSE)
+  ngroup = 6, # Number of classes to be classified
+  polygonize = FALSE,
+  seed=123)
 ```
