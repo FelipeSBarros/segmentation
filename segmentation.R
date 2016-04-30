@@ -80,7 +80,7 @@ segmentation <- function(envLayer = envLayer, #raster Layer or raster stack
     rf_segmentation <-
       raster::predict(envLayer, rf.mdl, progress = "text", type = 'response')
     
-    if (polygonize) {
+    if (save.shp) {
       cat("converting and saving to Polygons \n")
       # Saving Vector output (Polygon)
       rf_segmentation <-
