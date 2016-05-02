@@ -1,6 +1,7 @@
 segmentation <- function(envLayer = envLayer, #raster Layer or raster stack
                          studyArea = studyArea, # SpatialPolygonsDataFrame
                          projName = 'MT', # Sufix to be used when saving results
+                         folder = './',
                          randomforest = TRUE,
                          Kmeans = TRUE,
                          fuzzy.cluster = FALSE,
@@ -9,6 +10,7 @@ segmentation <- function(envLayer = envLayer, #raster Layer or raster stack
                          save.shp = FALSE,
                          save.raster = FALSE,
                          save.plot=FALSE,
+                         save.fit=TRUE,
                          seed = 123) {
   library(rgdal)
   library(raster)
@@ -17,6 +19,7 @@ segmentation <- function(envLayer = envLayer, #raster Layer or raster stack
   library(ggplot2)
 
   if (randomforest) {
+    cat("Processing randomForest \n")
     #Generating random points:
     if (is.null(random.pt)) {
       random.pt <- as.integer(0.01 * ncell(envLayer))
@@ -46,15 +49,15 @@ segmentation <- function(envLayer = envLayer, #raster Layer or raster stack
       wss[i] <- sum(kmeans(mydata, centers = i)$withinss)
     wss2 <- as.data.frame(wss)
     wss2$row <- as.integer(rownames(wss2))
-    
-    # Saving plot
-    ggplot(wss2, aes(x = row, y = wss)) + geom_line() + labs(x = "Number of Clusters", y = "Within groups sum of squares") + theme(text = element_text(size = 17))
-    ggsave(paste0("Kmeans_clusterAnalysis_",projName, ".png"), dpi = 300)
-    dev.off()
-    
-    plot(wss2$row, wss2$wss, xlab = "Number of Clusters", ylab = "Within groups sum of squares", type = 'b')
+    if (save.plot){
+      # Saving plot
+      ggplot(wss2, aes(x = row, y = wss)) + geom_line() + labs(x = "Number of Clusters", y = "Within groups sum of squares") + theme(text = element_text(size = 17))
+      ggsave(paste0("Kmeans_clusterAnalysis_",projName, ".png"), dpi = 300)
+      dev.off()
+      }
     
     if (is.null(ngroup)) {
+      plot(wss2$row, wss2$wss, xlab = "Number of Clusters", ylab = "Within groups sum of squares", type = 'b')
       # Number of classes to be classified
       ngroup <- readline("How many groups should be created?")
     }
@@ -63,7 +66,10 @@ segmentation <- function(envLayer = envLayer, #raster Layer or raster stack
       mydata, ngroup, algorithm = c("Hartigan-Wong",
                                     "Lloyd",
                                     "Forgy",
-                                    "MacQueen")[1])
+                                    "MacQueen")[1], nstart = 10)
+    
+    # Saving statistical results
+    if(save.fit) save(fit, file=paste0(folder, projName, '_RF_','.RData'))
     
     # append cluster assignment
     mydata <- data.frame(mydata, fit$cluster)
@@ -90,7 +96,8 @@ segmentation <- function(envLayer = envLayer, #raster Layer or raster stack
         rf_segmentation, dsn = './', layer = paste0('rf_segmentation_',projName), driver =
           "ESRI Shapefile", overwrite_layer = TRUE
       )
-    } else {
+    }
+    if (save.raster){
       cat("Saving raster result \n")
       #Saving RASTER output
       writeRaster(
@@ -100,6 +107,7 @@ segmentation <- function(envLayer = envLayer, #raster Layer or raster stack
     cat("randomForest segmentation done. \n")
   }
   if (Kmeans) {
+    cat("Processing K-means \n")
     mydata <- getValues(envLayer)
     
     # Identificando pixel nao NA
@@ -121,9 +129,6 @@ segmentation <- function(envLayer = envLayer, #raster Layer or raster stack
       wss2 <- as.data.frame(wss)
       wss2$row <- as.integer(rownames(wss2))
       
-      #plotting results
-      plot(wss2$row, wss2$wss, xlab = "Number of Clusters", ylab = "Within groups sum of squares", type = 'b')
-      
       # Saving plot
       ggplot(wss2, aes(x = row, y = wss)) + geom_line() + labs(x = "Number of Clusters", y = "Within groups sum of squares") + theme(text = element_text(size = 17))
       ggsave(paste0("Kmeans_clusterAnalysis_",projName, ".png"), dpi = 300)
@@ -131,6 +136,9 @@ segmentation <- function(envLayer = envLayer, #raster Layer or raster stack
     }
     
     if (is.null(ngroup)) {
+      #plotting results
+      plot(wss2$row, wss2$wss, xlab = "Number of Clusters", ylab = "Within groups sum of squares", type = 'b')
+      
       # Number of classes to be classified
       ngroup <- readline("How many groups should be created?")
       }
@@ -139,11 +147,13 @@ segmentation <- function(envLayer = envLayer, #raster Layer or raster stack
     set.seed(seed)
     fit <-
       kmeans(
-        mydata, ngroup, algorithm = c("Hartigan-Wong",
+        mydata, ngroup, iter.max = 50, algorithm = c("Hartigan-Wong",
                                       "Lloyd",
                                       "Forgy",
                                       "MacQueen")[1], nstart=10)
     
+    # Saving statistical results
+    if(save.fit) save(fit, file=paste0(folder, projName, '_Kmeans_', '.RData'))
     # creating a raster layer to recieve goup values
     km_SegmentationRaster <- envLayer[[1]]
     
@@ -170,6 +180,7 @@ segmentation <- function(envLayer = envLayer, #raster Layer or raster stack
     cat("Kmeans segmentation done. \n")
   }
   if (fuzzy.cluster){
+    cat("Processing C-means (fuzzy K-means) \n")
     library(e1071)
     
     mydata <- getValues(envLayer)
@@ -187,6 +198,9 @@ segmentation <- function(envLayer = envLayer, #raster Layer or raster stack
     fuzzy <- cmeans(mydata, ngroup, iter.max = 100, verbose = FALSE,
                     dist = c("euclidean", "manhattan")[1], method = c("cmeans","ufcl")[1], m = 2,
                     rate.par = NULL, weights = 1, control = list())
+    
+    # Saving statistical results
+    if(save.fit) save(fuzzy, file=paste0(folder, projName, '_Fuzzy_','.RData'))
     
     # creating a raster layer to recieve goup values
     fuzzy_SegmentationRaster <- envLayer[[1]]
@@ -210,4 +224,9 @@ segmentation <- function(envLayer = envLayer, #raster Layer or raster stack
     }
     cat("Fuzzy segmentation done. \n")
   }
+  result <- list()
+  if (exists('rf_segmentation')) result<-c(result, rf_segmentation)
+  if (exists('km_SegmentationRaster')) result <-c(result, km_SegmentationRaster)
+  if (exists('fuzzy_SegmentationRaster')) result<-c(result, fuzzy_SegmentationRaster)
+  return(result)
   }
