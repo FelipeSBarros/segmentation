@@ -2,15 +2,15 @@ segmentation <- function(envLayer = envLayer, #raster Layer or raster stack
                          studyArea = studyArea, # SpatialPolygonsDataFrame
                          projName = 'MT', # Sufix to be used when saving results
                          folder = './',
-                         randomforest = TRUE,
-                         Kmeans = TRUE,
+                         randomforest = FALSE,
+                         Kmeans = FALSE,
                          fuzzy.cluster = FALSE,
                          random.pt = NULL, # Number of random points to be genarated to run randomForest
                          ngroup = NULL,
                          save.shp = FALSE,
                          save.raster = FALSE,
-                         explore=FALSE,
-                         h.life=FALSE,
+                         explore=TRUE,
+                         h.life=TRUE,
                          save.fit=TRUE,
                          seed = 123) {
   library(rgdal)
@@ -68,18 +68,18 @@ segmentation <- function(envLayer = envLayer, #raster Layer or raster stack
       # log(2)/teste$coefficients[2] #same as previous
       
       # visualising data and fitted function
-      ggplot(wss, aes(x = group, y = wss)) + geom_line() + labs(x = "Number of Clusters", y = "Within groups sum of squares") + theme(text = element_text(size = 17)) + + geom_point() + 
+      ggplot(wss, aes(x = group, y = wss)) + geom_line() + labs(x = "Number of Clusters", y = "Within groups sum of squares") + theme(text = element_text(size = 17)) + geom_point() + 
         annotate("segment", x=min(wss$group), xend=trunc(h.life), y=wss[trunc(h.life),'wss'], yend=wss[trunc(h.life),'wss'], colour = "red", linetype = "longdash") +
         annotate("text", x=1, y=wss[trunc(h.life),'wss'],
                  label=paste('h.life'), vjust=-.5, size=6, colour='red') +
         annotate("text", x=trunc(h.life), y=wss[trunc(h.life),'wss'],
                  label=paste(trunc(h.life)), vjust=-.5, size=6, colour='red')
-      list.dirs('./plots/')
+      
       if (!file.exists("./plots/")) dir.create("./plots/")
         ggsave(paste0("./plots/Kmeans_clusterAnalysis_",projName, ".png"), dpi = 300)
       dev.off()
     } else {
-      ggplot(wss, aes(x = group, y = wss)) + geom_line() + labs(x = "Number of Clusters", y = "Within groups sum of squares") + theme(text = element_text(size = 17)) +
+      ggplot(wss, aes(x = group, y = wss)) + geom_line() + labs(x = "Number of Clusters", y = "Within groups sum of squares") + theme(text = element_text(size = 17)) + geom_point() +
         annotate("rect", xmin=which(wss$RatioChange==min(wss$RatioChange[-1]))-1, 
                  xmax=which(wss$RatioChange==min(wss$RatioChange[-1])), 
                  ymin=min(wss$wss), ymax=wss[which(wss$RatioChange==min(wss$RatioChange[-1])),'wss'], alpha=.3, fill = "red") +
