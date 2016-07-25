@@ -9,7 +9,8 @@ segmentation <- function(envLayer = envLayer, #raster Layer or raster stack
                          ngroup = NULL,
                          save.shp = FALSE,
                          save.raster = FALSE,
-                         save.plot=FALSE,
+                         explore=FALSE,
+                         h.life=FALSE,
                          save.fit=TRUE,
                          seed = 123) {
   library(rgdal)
@@ -18,6 +19,80 @@ segmentation <- function(envLayer = envLayer, #raster Layer or raster stack
   library(randomForest)
   library(ggplot2)
 
+  if(explore){  
+    
+    # Will analyse the whithin sum of squares variation (cahnges) for different group number
+    cat("Processing K-means for exploratory analysis  \n")
+    mydata <- getValues(envLayer)
+    
+    # Identificando pixel nao NA
+    a <- which(!is.na(mydata))
+    
+    # Creating data to Kmeans analysis
+    mydata <- na.omit(values(envLayer))
+    
+    # Not used for this prupouse
+    mydata <- scale(mydata) # standardize variables
+    
+    set.seed(seed)
+    wss <- matrix(ncol=3, nrow=2*ngroup)
+    wss[1,1] <- (nrow(mydata) - 1) * sum(apply(mydata,2,var))
+    wss[1,2] <- 0
+    wss[1,3] <- 0
+    
+    for (b in 2:nrow(wss)){
+      set.seed(seed)
+      wss[b, 1] <- sum(kmeans(mydata, centers = b)$withinss)
+      wss[b, 2] <- abs(wss[b-1, 1] - wss[b, 1])
+      wss[b, 3] <- wss[b, 2] / wss[2, 2]
+      #wss[b, 4] <- wss[b, 1] / wss[1, 1]
+    }
+    
+    wss <- as.data.frame(wss)
+    names(wss) <- c('wss', 'DeltaChange', 'RatioChange')
+    wss$group <- as.integer(rownames(wss))
+    if (h.life){
+      # will analyse the amount of groups needed to achieve the half exponential decay (half life)
+      # exp. decay fit
+      exp.decay = lm(log(wss$wss) ~ wss$group)
+      
+      # exp. decay function using the fitted parameters
+      fun = function(x){exp(exp.decay$coefficients[2]*x + exp.decay$coefficients[1])}
+      
+      # exp. decay mean lifetime (scaling time)
+      tau = abs(1/exp.decay$coefficients[2])
+      
+      # exp. decay half life
+      # quantos grupos são necessários para reducao à metade do variacao inicial.
+      h.life = tau * log(2)
+      # log(2)/teste$coefficients[2] #same as previous
+      
+      # visualising data and fitted function
+      ggplot(wss, aes(x = group, y = wss)) + geom_line() + labs(x = "Number of Clusters", y = "Within groups sum of squares") + theme(text = element_text(size = 17)) + + geom_point() + 
+        annotate("segment", x=min(wss$group), xend=trunc(h.life), y=wss[trunc(h.life),'wss'], yend=wss[trunc(h.life),'wss'], colour = "red", linetype = "longdash") +
+        annotate("text", x=1, y=wss[trunc(h.life),'wss'],
+                 label=paste('h.life'), vjust=-.5, size=6, colour='red') +
+        annotate("text", x=trunc(h.life), y=wss[trunc(h.life),'wss'],
+                 label=paste(trunc(h.life)), vjust=-.5, size=6, colour='red')
+      list.dirs('./plots/')
+      if (!file.exists("./plots/")) dir.create("./plots/")
+        ggsave(paste0("./plots/Kmeans_clusterAnalysis_",projName, ".png"), dpi = 300)
+      dev.off()
+    } else {
+      ggplot(wss, aes(x = group, y = wss)) + geom_line() + labs(x = "Number of Clusters", y = "Within groups sum of squares") + theme(text = element_text(size = 17)) +
+        annotate("rect", xmin=which(wss$RatioChange==min(wss$RatioChange[-1]))-1, 
+                 xmax=which(wss$RatioChange==min(wss$RatioChange[-1])), 
+                 ymin=min(wss$wss), ymax=wss[which(wss$RatioChange==min(wss$RatioChange[-1])),'wss'], alpha=.3, fill = "red") +
+        annotate("text", x=which(wss$RatioChange==min(wss$RatioChange[-1]))-1, 
+                 y=wss[which(wss$RatioChange==min(wss$RatioChange[-1])),'wss'], 
+                 label=paste(which(wss$RatioChange==min(wss$RatioChange[-1]))-1), vjust=-1.5, size=5, colour='red')
+      if (!file.exists("./plots/")) dir.create("./plots/")
+      ggsave(paste0("./plots/Kmeans_clusterAnalysis_",projName, ".png"), dpi = 300)
+      dev.off()
+      }
+    
+  }
+  
   if (randomforest) {
     cat("Processing randomForest \n")
     #Generating random points:
@@ -29,7 +104,7 @@ segmentation <- function(envLayer = envLayer, #raster Layer or raster stack
     sp.pts <- spsample(studyArea, random.pt, type = "random")
     
     #Extracting raster values for each point
-    sp.pts$prec <- extract(envLayer, sp.pts)
+    sp.pts$vals <- extract(envLayer, sp.pts)
     
     #removing NA
     if (any(is.na(sp.pts@data))) {
@@ -40,27 +115,8 @@ segmentation <- function(envLayer = envLayer, #raster Layer or raster stack
     mydata <- as.data.frame(sp.pts@data)
     
     # Not used for this prupouse
-    #mydata <- scale(mydata) # standardize variables
+    mydata <- scale(mydata) # standardize variables
     
-    # Determine number of clusters
-    wss <- (nrow(mydata) - 1) * sum(apply(mydata,2,var))
-    
-    for (i in 2:(as.integer(0.01 * random.pt)))
-      wss[i] <- sum(kmeans(mydata, centers = i)$withinss)
-    wss2 <- as.data.frame(wss)
-    wss2$row <- as.integer(rownames(wss2))
-    if (save.plot){
-      # Saving plot
-      ggplot(wss2, aes(x = row, y = wss)) + geom_line() + labs(x = "Number of Clusters", y = "Within groups sum of squares") + theme(text = element_text(size = 17))
-      ggsave(paste0("Kmeans_clusterAnalysis_",projName, ".png"), dpi = 300)
-      dev.off()
-      }
-    
-    if (is.null(ngroup)) {
-      plot(wss2$row, wss2$wss, xlab = "Number of Clusters", ylab = "Within groups sum of squares", type = 'b')
-      # Number of classes to be classified
-      ngroup <- readline("How many groups should be created?")
-    }
     # K-Means Cluster Analysis
     fit <- kmeans(
       mydata, ngroup, algorithm = c("Hartigan-Wong",
@@ -93,15 +149,16 @@ segmentation <- function(envLayer = envLayer, #raster Layer or raster stack
         rasterToPolygons(
           rf_segmentation, fun = NULL, n = 4, na.rm = TRUE, digits = 12, dissolve = FALSE)
       writeOGR(
-        rf_segmentation, dsn = './', layer = paste0('rf_segmentation_',projName), driver =
+        rf_segmentation, dsn = paste0(folder), layer = paste0('rf_segmentation_',projName), driver =
           "ESRI Shapefile", overwrite_layer = TRUE
       )
     }
     if (save.raster){
       cat("Saving raster result \n")
       #Saving RASTER output
+      if (!file.exists("./rasters/")) dir.create("./rasters/")
       writeRaster(
-        rf_segmentation, filename = paste0('./rf_segmentation_',projName,'.tif'), overwrite = TRUE
+        rf_segmentation, filename = paste0(folder, './rasters/rf_segmentation_',projName,'.tif'), overwrite = TRUE
       )
     }
     cat("randomForest segmentation done. \n")
@@ -119,30 +176,6 @@ segmentation <- function(envLayer = envLayer, #raster Layer or raster stack
     # Not used for this prupouse
     mydata <- scale(mydata) # standardize variables
     
-    if(save.plot){  
-      
-      # Determine number of clusters
-      wss <- (nrow(mydata) - 1) * sum(apply(mydata,2,var))
-    
-      for (b in 2:20)
-      wss[b] <- sum(kmeans(mydata, centers = i)$withinss)
-      wss2 <- as.data.frame(wss)
-      wss2$row <- as.integer(rownames(wss2))
-      
-      # Saving plot
-      ggplot(wss2, aes(x = row, y = wss)) + geom_line() + labs(x = "Number of Clusters", y = "Within groups sum of squares") + theme(text = element_text(size = 17))
-      ggsave(paste0("Kmeans_clusterAnalysis_",projName, ".png"), dpi = 300)
-      dev.off()
-    }
-    
-    if (is.null(ngroup)) {
-      #plotting results
-      plot(wss2$row, wss2$wss, xlab = "Number of Clusters", ylab = "Within groups sum of squares", type = 'b')
-      
-      # Number of classes to be classified
-      ngroup <- readline("How many groups should be created?")
-      }
-      
     # K-Means Cluster Analysis
     set.seed(seed)
     fit <-
@@ -169,13 +202,14 @@ segmentation <- function(envLayer = envLayer, #raster Layer or raster stack
           rasterToPolygons(
             km_SegmentationRaster, fun = NULL, n = 4, na.rm = TRUE, digits = 12, dissolve =  FALSE)
         writeOGR(
-          km_SegmentationRaster, dsn = './', layer = paste0('km_segmentation_',projName), driver = "ESRI Shapefile", overwrite_layer = TRUE)
+          km_SegmentationRaster, dsn = paste0(folder), layer = paste0('km_segmentation_',projName), driver = "ESRI Shapefile", overwrite_layer = TRUE)
       } 
     if (save.raster) {
         #Saving RASTER output
         cat("Saving raster result \n")
+      if (!file.exists("./rasters/")) dir.create("./rasters/")
         writeRaster(
-          km_SegmentationRaster, filename = paste0('./km_segmentation_',projName,'.tif'), overwrite = TRUE)
+          km_SegmentationRaster, filename = paste0(folder, './rasters/km_segmentation_',projName,'.tif'), overwrite = TRUE)
         }
     cat("Kmeans segmentation done. \n")
   }
@@ -197,7 +231,7 @@ segmentation <- function(envLayer = envLayer, #raster Layer or raster stack
     set.seed(seed)
     fuzzy <- cmeans(mydata, ngroup, iter.max = 100, verbose = FALSE,
                     dist = c("euclidean", "manhattan")[1], method = c("cmeans","ufcl")[1], m = 2,
-                    rate.par = NULL, weights = 1, control = list())
+                    rate.par = 0.3, weights = 1, control = list())
     
     # Saving statistical results
     if(save.fit) save(fuzzy, file=paste0(folder, projName, '_Fuzzy_','.RData'))
@@ -214,13 +248,14 @@ segmentation <- function(envLayer = envLayer, #raster Layer or raster stack
         rasterToPolygons(
           fuzzy_SegmentationRaster, fun = NULL, n = 4, na.rm = TRUE, digits = 12, dissolve =  FALSE)
       writeOGR(
-        fuzzy_SegmentationRaster, dsn = './', layer = paste0('fuzzy_segmentation_',projName), driver = "ESRI Shapefile", overwrite_layer = TRUE)
+        fuzzy_SegmentationRaster, dsn = paste0(folder), layer = paste0('fuzzy_segmentation_',projName), driver = "ESRI Shapefile", overwrite_layer = TRUE)
     } 
     if (save.raster) {
       #Saving RASTER output
       cat("Saving raster result \n")
+      if (!file.exists("./rasters/")) dir.create("./rasters/")
       writeRaster(
-        fuzzy_SegmentationRaster, filename = paste0('./fuzzy_segmentation_',projName,'.tif'), overwrite = TRUE)
+        fuzzy_SegmentationRaster, filename = paste0(folder, './rasters/fuzzy_segmentation_',projName,'.tif'), overwrite = TRUE)
     }
     cat("Fuzzy segmentation done. \n")
   }
