@@ -66,9 +66,13 @@ segmentation <- function(envLayer = envLayer, #raster Layer or raster stack
       h.life = tau * log(2)
       # log(2)/teste$coefficients[2] #same as previous
       
+      # building fitted line
+      fitted.line <- data.frame(group=(1:(2*ngroup)))
+      fitted.line$wss <- unlist(lapply((1:(2*ngroup)), fun))
+      
       # visualising data and fitted function
-      ggplot(wss, aes(x = group, y = wss)) + geom_line() + labs(x = "Number of Clusters", y = "Within groups sum of squares") + theme(text = element_text(size = 17)) + geom_point() + 
-        annotate("segment", x=min(wss$group), xend=trunc(h.life), y=wss[trunc(h.life),'wss'], yend=wss[trunc(h.life),'wss'], colour = "red", linetype = "longdash") +
+      ggplot(wss, aes(x = group, y = wss)) + geom_line() + labs(x = "Number of Clusters", y = "Within groups sum of squares") + theme(text = element_text(size = 17)) + geom_point()  + geom_line(data=t, aes(x=group, y=wss), colour="red") +
+        annotate("segment", x=min(wss$group), xend=trunc(h.life), y=wss[trunc(h.life),'wss'], yend=fitted.line[trunc(h.life),'wss'], colour = "red", linetype = "longdash") +
         annotate("text", x=1, y=wss[trunc(h.life),'wss'],
                  label=paste('h.life'), vjust=-.5, size=6, colour='red') +
         annotate("text", x=trunc(h.life), y=wss[trunc(h.life),'wss'],
