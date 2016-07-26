@@ -33,14 +33,14 @@ segmentation <- function(envLayer = envLayer, #raster Layer or raster stack
     # Not used for this prupouse
     mydata <- scale(mydata) # standardize variables
     
-    set.seed(seed)
+    #set.seed(seed)
     wss <- matrix(ncol=3, nrow=2*ngroup)
     wss[1,1] <- (nrow(mydata) - 1) * sum(apply(mydata,2,var))
     wss[1,2] <- 0
     wss[1,3] <- 0
     
     for (b in 2:nrow(wss)){
-      set.seed(seed)
+      #set.seed(seed)
       wss[b, 1] <- sum(kmeans(mydata, centers = b)$withinss)
       wss[b, 2] <- abs(wss[b-1, 1] - wss[b, 1])
       wss[b, 3] <- wss[b, 2] / wss[2, 2]
@@ -71,11 +71,11 @@ segmentation <- function(envLayer = envLayer, #raster Layer or raster stack
       fitted.line$wss <- unlist(lapply((1:(2*ngroup)), fun))
       
       # visualising data and fitted function
-      ggplot(wss, aes(x = group, y = wss)) + geom_line() + labs(x = "Number of Clusters", y = "Within groups sum of squares") + theme(text = element_text(size = 17)) + geom_point()  + geom_line(data=t, aes(x=group, y=wss), colour="red") +
-        annotate("segment", x=min(wss$group), xend=trunc(h.life), y=wss[trunc(h.life),'wss'], yend=fitted.line[trunc(h.life),'wss'], colour = "red", linetype = "longdash") +
-        annotate("text", x=1, y=wss[trunc(h.life),'wss'],
+      ggplot(wss, aes(x = group, y = wss)) + geom_line() + labs(x = "Number of Clusters", y = "Within groups sum of squares") + theme(text = element_text(size = 17)) + geom_point()  + geom_line(data=fitted.line, aes(x=group, y=wss), colour="red") +
+        annotate("segment", x=min(wss$group), xend=trunc(h.life), y=fitted.line[trunc(h.life),'wss'], yend=fitted.line[trunc(h.life),'wss'], colour = "red", linetype = "longdash") +
+        annotate("text", x=1, y=fitted.line[trunc(h.life),'wss'],
                  label=paste('h.life'), vjust=-.5, size=6, colour='red') +
-        annotate("text", x=trunc(h.life), y=wss[trunc(h.life),'wss'],
+        annotate("text", x=trunc(h.life), y=fitted.line[trunc(h.life),'wss'],
                  label=paste(trunc(h.life)), vjust=-.5, size=6, colour='red')
       
       if (!file.exists("./plots/")) dir.create("./plots/")
@@ -89,11 +89,11 @@ segmentation <- function(envLayer = envLayer, #raster Layer or raster stack
         annotate("text", x=which(wss$RatioChange==min(wss$RatioChange[-1]))-1, 
                  y=wss[which(wss$RatioChange==min(wss$RatioChange[-1])),'wss'], 
                  label=paste(which(wss$RatioChange==min(wss$RatioChange[-1]))-1), vjust=-1.5, size=5, colour='red')
+
       if (!file.exists("./plots/")) dir.create("./plots/")
       ggsave(paste0("./plots/Kmeans_clusterAnalysis_",projName, ".png"), dpi = 300)
       dev.off()
       }
-    
   }
   
   if (randomforest) {
