@@ -16,7 +16,6 @@ segmentation <- function(envLayer = envLayer, #raster Layer or raster stack
   library(rgdal)
   library(raster)
   library(rgeos)
-  library(randomForest)
   library(ggplot2)
 
   if(explore){  
@@ -77,7 +76,7 @@ segmentation <- function(envLayer = envLayer, #raster Layer or raster stack
       
       if (!file.exists("./plots/")) dir.create("./plots/")
         ggsave(paste0("./plots/Kmeans_clusterAnalysis_",projName, ".png"), dpi = 300)
-      dev.off()
+      #dev.off()
     } else {
       ggplot(wss, aes(x = group, y = wss)) + geom_line() + labs(x = "Number of Clusters", y = "Within groups sum of squares") + theme(text = element_text(size = 17)) + geom_point() +
         annotate("rect", xmin=which(wss$RatioChange==min(wss$RatioChange[-1]))-1, 
@@ -94,6 +93,7 @@ segmentation <- function(envLayer = envLayer, #raster Layer or raster stack
   }
   
   if (randomforest) {
+    library(randomForest)
     cat("Processing randomForest \n")
     #Generating random points:
     if (is.null(random.pt)) {
@@ -158,7 +158,7 @@ segmentation <- function(envLayer = envLayer, #raster Layer or raster stack
       #Saving RASTER output
       if (!file.exists("./rasters/")) dir.create("./rasters/")
       writeRaster(
-        rf_segmentation, filename = paste0(folder, './rasters/rf_segmentation_',projName,'.tif'), overwrite = TRUE
+        rf_segmentation, filename = paste0(folder, 'rf_segmentation_',projName,'.tif'), overwrite = TRUE
       )
     }
     cat("randomForest segmentation done. \n")
@@ -209,7 +209,7 @@ segmentation <- function(envLayer = envLayer, #raster Layer or raster stack
         cat("Saving raster result \n")
       if (!file.exists("./rasters/")) dir.create("./rasters/")
         writeRaster(
-          km_SegmentationRaster, filename = paste0(folder, './rasters/km_segmentation_',projName,'.tif'), overwrite = TRUE)
+          km_SegmentationRaster, filename = paste0(folder, 'km_segmentation_',projName,'.tif'), overwrite = TRUE)
         }
     cat("Kmeans segmentation done. \n")
   }
@@ -255,7 +255,7 @@ segmentation <- function(envLayer = envLayer, #raster Layer or raster stack
       cat("Saving raster result \n")
       if (!file.exists("./rasters/")) dir.create("./rasters/")
       writeRaster(
-        fuzzy_SegmentationRaster, filename = paste0(folder, './rasters/fuzzy_segmentation_',projName,'.tif'), overwrite = TRUE)
+        fuzzy_SegmentationRaster, filename = paste0(folder, 'fuzzy_segmentation_',projName,'.tif'), overwrite = TRUE)
     }
     cat("Fuzzy segmentation done. \n")
   }
