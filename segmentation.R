@@ -33,14 +33,14 @@ segmentation <- function(envLayer = envLayer, #raster Layer or raster stack
     # Not used for this prupouse
     mydata <- scale(mydata) # standardize variables
     
-    #set.seed(seed)
+    set.seed(seed)
     wss <- matrix(ncol=3, nrow=2*ngroup)
     wss[1,1] <- (nrow(mydata) - 1) * sum(apply(mydata,2,var))
     wss[1,2] <- 0
     wss[1,3] <- 0
     
     for (b in 2:nrow(wss)){
-      #set.seed(seed)
+      set.seed(seed)
       wss[b, 1] <- sum(kmeans(mydata, centers = b)$withinss)
       wss[b, 2] <- abs(wss[b-1, 1] - wss[b, 1])
       wss[b, 3] <- wss[b, 2] / wss[2, 2]
