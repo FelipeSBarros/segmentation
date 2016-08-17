@@ -1,13 +1,14 @@
 satPrep <- function(rasterFolder = './ModData/1985/',
-                        crop.Ext = NULL,
-                        ndvi = TRUE,
-                        evi = TRUE,
-                        savi = TRUE,
-                        nameOutput = 'stack_1985'
-                        ){
+                    pattern='.TIF$',
+                    crop.Ext = NULL,
+                    ndvi = TRUE,
+                    evi = TRUE,
+                    savi = TRUE,
+                    nameOutput = 'stack_1985'
+){
   library(raster)
   #Stack of layers
-  satImagery <- stack(list.files( rasterFolder, pattern='.TIF$', full.names = TRUE))
+  satImagery <- stack(list.files( rasterFolder, pattern=pattern, full.names = TRUE))
   
   if (!is.null(crop.Ext)){
     if (! proj4string(crop.Ext) == proj4string(satImagery)){
