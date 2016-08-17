@@ -1,5 +1,8 @@
 satPrep <- function(rasterFolder = './ModData/1985/',
                     pattern='.TIF$',
+                    Blue=2,
+                    Red=4,
+                    NIR=5,
                     crop.Ext = NULL,
                     ndvi = TRUE,
                     evi = TRUE,
@@ -20,21 +23,21 @@ satPrep <- function(rasterFolder = './ModData/1985/',
   
   if (ndvi){
     # NDVI----
-    ndvi <- overlay(satImagery[[4]], satImagery[[3]], fun=function(x,y){(x-y)/(x+y)})
+    ndvi <- overlay(satImagery[[NIR]], satImagery[[Red]], fun=function(x,y){(x-y)/(x+y)})
     names(ndvi) <- 'ndvi'
     satImagery <- addLayer(satImagery, ndvi)
   }
   
   if (evi){
     # EVI ----
-    evi <- overlay(satImagery[[4]], satImagery[[3]], satImagery[[1]], fun=function(x,y,z){(2.5*(x-y)/((x+6)*(y-7.5)*(z+1)))})
+    evi <- overlay(satImagery[[NIR]], satImagery[[Red]], satImagery[[Blue]], fun=function(x,y,z){(2.5*(x-y)/((x+6)*(y-7.5)*(z+1)))})
     names(evi) <- 'evi'
     satImagery <- addLayer(satImagery, evi)
   }
   
   if(savi){
     # SAVI ----
-    savi <- overlay(satImagery[[5]], satImagery[[4]], fun=function(x,y){((x-y)/(x+y+0.5))*(1.5)})
+    savi <- overlay(satImagery[[NIR]], satImagery[[Red]], fun=function(x,y){((x-y)/(x+y+0.5))*(1.5)})
     names(savi) <- 'savi'
     satImagery <- addLayer(satImagery, savi)
   }
